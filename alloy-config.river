@@ -1,0 +1,26 @@
+// Promtail Configuration
+local.file_match "applogs" {
+  path_targets = [{
+    __address__ = "localhost",
+    __path__    = "/var/log/*.log",
+  }]
+}
+
+// Loki Configuration
+loki.source.file "local_files" {
+  targets    = local.file_match.applogs.targets
+  forward_to = [loki.write.loki_elven.receiver]
+}
+
+loki.write "loki_elven" {
+  endpoint {
+    url          = "https://loki.elvenobservability.com/loki/api/v1/push"
+    bearer_token = ""
+    headers = {
+      "X-Scope-OrgID" = "elven",
+    }
+  }
+  external_labels = {
+    job = "app-1",
+  }
+}

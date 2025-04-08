@@ -1,0 +1,58 @@
+version: "3.8"
+
+networks:
+  monitoring-net:
+    driver: bridge
+
+services:
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: node-exporter
+    restart: unless-stopped
+    networks:
+      - monitoring-net
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - "--path.procfs=/host/proc"
+      - "--path.sysfs=/host/sys"
+      - '--collector.filesystem.ignored-mount-points="^/(sys|proc|dev|host|etc)($|/)"'
+    labels:
+      org.label-schema.group: "monitoring"
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    container_name: otel-collector
+    restart: unless-stopped
+    networks:
+      - monitoring-net
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+      - "8888:8888"
+      - "9464:9464"
+
+  alloy:
+    image: grafana/alloy:latest
+    container_name: alloy
+    restart: unless-stopped
+    networks:
+      - monitoring-net
+    ports:
+      - "12347:12347"  
+    volumes:
+      - /var/log:/var/log:ro
+      - /opt/apps/logs:/opt/apps/logs:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./alloy-config.river:/etc/alloy-config.river
+    command: [ "run", "/etc/alloy-config.river" ]
+    labels:
+      org.label-schema.group: "monitoring"
+
+
